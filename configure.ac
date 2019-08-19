@@ -20,6 +20,7 @@ AX_CXX_COMPILE_STDCXX_11(noext, mandatory)
 PKG_CHECK_MODULES(LDEPS, [
 	libvncserver
 	pangocairo
+	xkbcommon
 ])
 
 AC_SUBST(LDEPS_CFLAGS)
