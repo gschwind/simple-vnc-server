@@ -7,25 +7,9 @@
 
 #include "microui-render.hxx"
 
-#include <pango/pango.h>
-#include <pango/pangocairo.h>
+namespace svs {
 
-cairo_t * cr;
-cairo_surface_t * surf;
-
-PangoFontDescription * pango_font;
-PangoFontMap * pango_font_map = pango_cairo_font_map_get_default();
-PangoContext * pango_context = pango_font_map_create_context(pango_font_map);
-
-void r_init(void)
-{
-    pango_font = pango_font_description_from_string("Arial");
-    pango_font_map = pango_cairo_font_map_get_default();
-    pango_context = pango_font_map_create_context(pango_font_map);
-}
-
-
-void r_draw_rect(mu_Rect rect, mu_Color color)
+void render::draw_rect(mu_Rect rect, mu_Color color)
 {
 //    cairo_save(cr);
     cairo_set_source_rgba(cr, color.r/255.0, color.g/255.0, color.b/255.0, color.a/255.0);
@@ -34,13 +18,13 @@ void r_draw_rect(mu_Rect rect, mu_Color color)
 //    cairo_restore(cr);
 }
 
-void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color)
+void render::draw_text(const char *text, mu_Vec2 pos, mu_Color color)
 {
 //    printf("draw text %s\n", text);
 
     cairo_save(cr);
 
-    cairo_translate(cr, pos.x, pos.y-r_get_text_height()/2.0);
+    cairo_translate(cr, pos.x, pos.y-get_text_height()/2.0);
 
     cairo_set_line_width(cr, 3.0);
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
@@ -67,7 +51,7 @@ void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color)
     cairo_restore(cr);
 }
 
-void r_draw_icon(int id, mu_Rect rect, mu_Color color)
+void render::draw_icon(int id, mu_Rect rect, mu_Color color)
 {
     //    cairo_save(cr);
         cairo_set_source_rgba(cr, color.r/255.0, color.g/255.0, color.b/255.0, color.a/255.0);
@@ -76,7 +60,7 @@ void r_draw_icon(int id, mu_Rect rect, mu_Color color)
     //    cairo_restore(cr);
 }
 
- int r_get_text_width(const char *text, int len)
+ int render::get_text_width(const char *text, int len)
  {
      PangoLayout * pango_layout = pango_layout_new(pango_context);
      pango_layout_set_font_description(pango_layout, pango_font);
@@ -88,27 +72,44 @@ void r_draw_icon(int id, mu_Rect rect, mu_Color color)
      return log.width/PANGO_SCALE;
  }
 
-int r_get_text_height(void)
+int render::get_text_height(void)
 {
     return 10;
 }
 
-void r_set_clip_rect(mu_Rect rect)
+void render::set_clip_rect(mu_Rect rect)
 {
     cairo_reset_clip(cr);
     cairo_rectangle(cr, rect.x, rect.y, rect.w, rect.y);
     cairo_clip(cr);
 }
 
-void r_clear(mu_Color color)
+void render::clear(mu_Color color)
 {
     cairo_reset_clip(cr);
     cairo_set_source_rgba(cr, color.r/255.0, color.g/255.0, color.b/255.0, 1.0-color.a/255.0);
     cairo_paint(cr);
 }
 
-void r_present(void)
+void render::present(void)
 {
     cairo_surface_flush(surf);
 }
 
+void render::dorender(mu_Context * ctx)
+{
+    /* render */
+    clear(mu_color(0, 0, 0, 0));
+    mu_Command *cmd = NULL;
+    while (mu_next_command(ctx, &cmd)) {
+      switch (cmd->type) {
+        case MU_COMMAND_TEXT: draw_text(cmd->text.str, cmd->text.pos, cmd->text.color); break;
+        case MU_COMMAND_RECT: draw_rect(cmd->rect.rect, cmd->rect.color); break;
+        case MU_COMMAND_ICON: draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color); break;
+        case MU_COMMAND_CLIP: set_clip_rect(cmd->clip.rect); break;
+      }
+    }
+    present();
+}
+
+}

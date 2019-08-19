@@ -10,6 +10,7 @@
 #define MICROUI_H
 
 #include <cstdlib>
+#include <array>
 
 #define MU_VERSION "1.02"
 
@@ -89,7 +90,8 @@ enum {
   MU_OPT_HOLDFOCUS    = (1 << 8),
   MU_OPT_AUTOSIZE     = (1 << 9),
   MU_OPT_POPUP        = (1 << 10),
-  MU_OPT_CLOSED       = (1 << 11)
+  MU_OPT_CLOSED       = (1 << 11),
+  MU_OPT_PASSWD       = (1 << 12)
 };
 
 enum {
@@ -249,6 +251,18 @@ void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len, mu_Ve
 void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color);
 
 void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height);
+
+template<int const N>
+void mu_layout_rowx(mu_Context *ctx, std::array<int, N> widths, int height) {
+  mu_Layout *layout = &ctx->layout_stack.items[ctx->layout_stack.idx - 1];
+//  expect(N <= MU_MAX_WIDTHS);
+  memcpy(layout->widths, &widths[0], N * sizeof(widths[0]));
+  layout->items = N;
+  layout->position = mu_vec2(layout->indent, layout->next_row);
+  layout->size.y = height;
+  layout->row_index = 0;
+}
+
 void mu_layout_width(mu_Context *ctx, int width);
 void mu_layout_height(mu_Context *ctx, int height);
 void mu_layout_begin_column(mu_Context *ctx);

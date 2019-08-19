@@ -8,6 +8,7 @@
 #include <cassert>
 #include <vector>
 #include <map>
+#include <memory>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,6 +46,31 @@ std::map<int, int> key_map = {
         {XKB_KEY_BackSpace, MU_KEY_BACKSPACE},
 };
 
+
+static mu_Style style = {
+  NULL,       /* font */
+  { 68, 10 }, /* size */
+  6, 4, 24,   /* padding, spacing, indent */
+  26,         /* title_height */
+  12, 8,      /* scrollbar_size, thumb_size */
+  {
+    { 230, 230, 230, 255 }, /* MU_COLOR_TEXT */
+    { 25,  25,  25,  255 }, /* MU_COLOR_BORDER */
+    { 50,  50,  50,  255 }, /* MU_COLOR_WINDOWBG */
+    { 20,  20,  20,  255 }, /* MU_COLOR_TITLEBG */
+    { 240, 240, 240, 255 }, /* MU_COLOR_TITLETEXT */
+    { 0,   0,   0,   0   }, /* MU_COLOR_PANELBG */
+    { 75,  75,  75,  255 }, /* MU_COLOR_BUTTON */
+    { 95,  95,  95,  255 }, /* MU_COLOR_BUTTONHOVER */
+    { 115, 115, 115, 255 }, /* MU_COLOR_BUTTONFOCUS */
+    { 30,  30,  30,  255 }, /* MU_COLOR_BASE */
+    { 35,  35,  35,  255 }, /* MU_COLOR_BASEHOVER */
+    { 40,  40,  40,  255 }, /* MU_COLOR_BASEFOCUS */
+    { 43,  43,  43,  255 }, /* MU_COLOR_SCROLLBASE */
+    { 30,  30,  30,  255 }  /* MU_COLOR_SCROLLTHUMB */
+  }
+};
+
 static void write_log(const char *text) {
     printf("%s\n", text);
 }
@@ -56,110 +82,26 @@ static void test_window(mu_Context *ctx) {
 
   /* init window manually so we can set its position and size */
   if (!window.inited) {
-    mu_init_window(ctx, &window, 0);
-    window.rect = mu_rect(40, 40, 800, 450);
+        mu_init_window(ctx, &window, 0);
+        window.rect = mu_rect((800-400)/2, (600-400)/2, 400, 400);
   }
-
-  /* limit window to minimum size */
-//  window.rect.w = mu_max(window.rect.w, 240);
-//  window.rect.h = mu_max(window.rect.h, 300);
-
 
   /* do window */
   if (mu_begin_popup(ctx, &window)) {
 
     /* window info */
-    static int show_info = 0;
-    if (mu_header(ctx, &show_info, "Window Info")) {
-      char buf[64];
-      int tmp0[] = { 54, -1 };
-      mu_layout_row(ctx, 2, tmp0, 0);
-      static char bufx[100] = {0};
-      mu_textbox(ctx,bufx, 100);
-      sprintf(buf, "%d, %d", window.rect.x, window.rect.y); mu_label(ctx, buf);
-      mu_label(ctx, "Size:");
-      sprintf(buf, "%d, %d", window.rect.w, window.rect.h); mu_label(ctx, buf);
-    }
+//    int tmp0[] = { 54, 100 };
+    mu_layout_rowx<2>(ctx, {54, 100}, 0);
+    static char bufx[100] = {0};
+    static char pasx[100] = {0};
+    mu_label(ctx, "Login:");
 
-    /* labels + buttons */
-    static int show_buttons = 1;
-    if (mu_header(ctx, &show_buttons, "Test Buttons")) {
-      int tmp0[] = { 86, -110, -1 };
-      mu_layout_row(ctx, 3, tmp0, 0);
-      mu_label(ctx, "Test buttons 1:");
-      if (mu_button(ctx, "Button 1")) { write_log("Pressed button 1"); }
-      if (mu_button(ctx, "Button 2")) { write_log("Pressed button 2"); }
-      mu_label(ctx, "Test buttons 2:");
-      if (mu_button(ctx, "Button 3")) { write_log("Pressed button 3"); }
-      if (mu_button(ctx, "Button 4")) { write_log("Pressed button 4"); }
-    }
+    mu_textbox(ctx,bufx, 100);
 
-    /* tree */
-    static int show_tree = 1;
-    if (mu_header(ctx, &show_tree, "Tree and Text")) {
-      int tmp0[] = { 140, -1 };
-      mu_layout_row(ctx, 2, tmp0, 0);
-      mu_layout_begin_column(ctx);
-      static int states[8];
-      if (mu_begin_treenode(ctx, &states[0], "Test 1")) {
-        if (mu_begin_treenode(ctx, &states[1], "Test 1a")) {
-          mu_label(ctx, "Hello");
-          mu_label(ctx, "world");
-          mu_end_treenode(ctx);
-        }
-        if (mu_begin_treenode(ctx, &states[2], "Test 1b")) {
-          if (mu_button(ctx, "Button 1")) { write_log("Pressed button 1"); }
-          if (mu_button(ctx, "Button 2")) { write_log("Pressed button 2"); }
-          mu_end_treenode(ctx);
-        }
-        mu_end_treenode(ctx);
-      }
-      if (mu_begin_treenode(ctx, &states[3], "Test 2")) {
-        int tmp0[] = { 54, 54 };
-        mu_layout_row(ctx, 2, tmp0, 0);
-        if (mu_button(ctx, "Button 3")) { write_log("Pressed button 3"); }
-        if (mu_button(ctx, "Button 4")) { write_log("Pressed button 4"); }
-        if (mu_button(ctx, "Button 5")) { write_log("Pressed button 5"); }
-        if (mu_button(ctx, "Button 6")) { write_log("Pressed button 6"); }
-        mu_end_treenode(ctx);
-      }
-      if (mu_begin_treenode(ctx, &states[4], "Test 3")) {
-        static int checks[3] = { 1, 0, 1 };
-        mu_checkbox(ctx, &checks[0], "Checkbox 1");
-        mu_checkbox(ctx, &checks[1], "Checkbox 2");
-        mu_checkbox(ctx, &checks[2], "Checkbox 3");
-        mu_end_treenode(ctx);
-      }
-      mu_layout_end_column(ctx);
+    mu_label(ctx, "Password:");
 
-      mu_layout_begin_column(ctx);
-      int tmp1[]  = { -1 };
-      mu_layout_row(ctx, 1, tmp1, 0);
-      mu_text(ctx, "Lorem ipsum dolor sit amet, consectetur adipiscing "
-        "elit. Maecenas lacinia, sem eu lacinia molestie, mi risus faucibus "
-        "ipsum, eu varius magna felis a nulla.");
-      mu_layout_end_column(ctx);
-    }
-
-    /* background color sliders */
-    static int show_sliders = 1;
-    if (mu_header(ctx, &show_sliders, "Background Color")) {
-      int tmp0[] = { -78, -1 };
-      mu_layout_row(ctx, 2, tmp0, 74);
-      /* sliders */
-      mu_layout_begin_column(ctx);
-      int tmp1[] = { 46, -1 };
-      mu_layout_row(ctx, 2, tmp1, 0);
-      mu_label(ctx, "Red:");   mu_slider(ctx, &bg[0], 0, 255);
-      mu_label(ctx, "Green:"); mu_slider(ctx, &bg[1], 0, 255);
-      mu_label(ctx, "Blue:");  mu_slider(ctx, &bg[2], 0, 255);
-      mu_layout_end_column(ctx);
-      /* color preview */
-      mu_Rect r = mu_layout_next(ctx);
-      mu_draw_rect(ctx, r, mu_color(bg[0], bg[1], bg[2], 255));
-      char buf[32];
-      sprintf(buf, "#%02X%02X%02X", (int) bg[0], (int) bg[1], (int) bg[2]);
-      mu_draw_control_text(ctx, buf, r, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
+    if(mu_textbox_ex(ctx, pasx, 100, MU_OPT_PASSWD) & MU_RES_SUBMIT) {
+        // TODO login;
     }
 
     mu_end_popup(ctx);
@@ -212,50 +154,20 @@ struct client {
     cairo_surface_t * surf;
     rfbScreenInfoPtr screen;
 
+    std::shared_ptr<svs::render> render;
 
-    void paint_dialog(int x, int y)
+    void update_frame()
     {
-////        auto surf = cairo_image_surface_create_for_data((unsigned char*)screen->frameBuffer, CAIRO_FORMAT_ARGB32, 800, 600, 800*4);
-//        auto cr = cairo_create(surf);
-//
-//        cairo_translate(cr, x, y);
-//
-//        cairo_rectangle(cr, -100, 0, 200, 100);
-//        cairo_set_source_rgb(cr, 0.7, 0.7, 0.0);
-//        cairo_fill(cr);
-//
-//        paint_text(cr, -100, 10, &msg[0]);
-//        paint_text(cr, -100, 50, &rsp[0]);
-//
-//        cairo_destroy(cr);
-//        cairo_surface_flush(surf);
-//
-//        rfbMarkRectAsModified(screen, x-100, y, x+201, y+100);
 
-    }
-
-    void update_frame() {
+        printf("update frame\n");
 
         mu_begin(ctx);
         test_window(ctx);
         mu_end(ctx);
 
         /* render */
-        r_clear(mu_color(bg[0], bg[1], bg[2], 0));
-        mu_Command *cmd = NULL;
-        while (mu_next_command(ctx, &cmd)) {
-          switch (cmd->type) {
-            case MU_COMMAND_TEXT: r_draw_text(cmd->text.str, cmd->text.pos, cmd->text.color); break;
-            case MU_COMMAND_RECT: r_draw_rect(cmd->rect.rect, cmd->rect.color); break;
-            case MU_COMMAND_ICON: r_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color); break;
-            case MU_COMMAND_CLIP: r_set_clip_rect(cmd->clip.rect); break;
-          }
-        }
-        r_present();
-
+        render->dorender(ctx);
         rfbMarkRectAsModified(screen, 0, 0, 800, 600);
-
-//        printf("update frame\n");
 
     }
 
@@ -294,28 +206,30 @@ static void ptrAddEvent(int buttonMask,int x,int y, rfbClientRec * client)
 
 void kbdAddEvent(rfbBool down, rfbKeySym keySym, rfbClientRec * client)
 {
-    printf("keyboard event: down = %d, keySym = 0x%x, client = %p\n", down, keySym, client);
+    printf("keyboard event: down = %d, keySym = 0x%x, client = %p\n", down,
+            keySym, client);
 
-        auto c = reinterpret_cast<struct client*>(client->screen->screenData);
+    auto c = reinterpret_cast<struct client*>(client->screen->screenData);
 
-        auto x = key_map.find(keySym);
-        if (x != key_map.end()) {
-            if (down)
-                mu_input_keydown(c->ctx, x->second);
-            else
-                mu_input_keyup(c->ctx, x->second);
-
-            c->update_frame();
-
+    auto x = key_map.find(keySym);
+    if (x != key_map.end()) {
+        if (down) {
+            mu_input_keydown(c->ctx, x->second);
         } else {
-            char buf[9];
-            int s = xkb_keysym_to_utf8(keySym, buf, 8);
-            if (s != 0 and s < 8) {
-                buf[s] = 0;
-                mu_input_text(c->ctx, buf);
-                c->update_frame();
-            }
+            mu_input_keyup(c->ctx, x->second);
         }
+
+        c->update_frame();
+
+    } else if (down) {
+        char buf[9];
+        int s = xkb_keysym_to_utf8(keySym, buf, 8);
+        if (s != 0 and s < 8) {
+            buf[s] = 0;
+            mu_input_text(c->ctx, buf);
+            c->update_frame();
+        }
+    }
 
 }
 
@@ -332,12 +246,14 @@ rfbNewClientAction newClientHook(rfbClientRec* cl)
 }
 
 static int text_width(mu_Font font, const char *text, int len) {
-  if (len == -1) { len = strlen(text); }
-  return r_get_text_width(text, len);
+    auto r = reinterpret_cast<svs::render*>(font);
+      if (len == -1) { len = strlen(text); }
+      return r->get_text_width(text, len);
 }
 
 static int text_height(mu_Font font) {
-  return r_get_text_height();
+  auto r = reinterpret_cast<svs::render*>(font);
+  return r->get_text_height();
 }
 
 
@@ -364,20 +280,16 @@ void new_client(int sock)
         auto data = new client;
         screen->screenData = data;
 
-        ::surf = cairo_image_surface_create_for_data((unsigned char*)screen->frameBuffer, CAIRO_FORMAT_ARGB32, 800, 600, 800*4);
-        ::cr = cairo_create(::surf);
-
         data->screen = screen;
-
-        r_init();
+        data->render = std::make_shared<svs::render>(screen->frameBuffer, CAIRO_FORMAT_ARGB32, 800, 600, 800*4);
 
         /* init microui */
         data->ctx = (mu_Context*)malloc(sizeof(mu_Context));
         mu_init(data->ctx);
         data->ctx->text_width = text_width;
         data->ctx->text_height = text_height;
-
-        data->paint_dialog(400,300);
+        data->ctx->style = &style;
+        style.font = data->render.get();
 
         rfbInitServer(screen);
 

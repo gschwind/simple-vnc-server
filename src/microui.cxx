@@ -786,11 +786,31 @@ int mu_textbox_raw(mu_Context *ctx, char *buf, int bufsz, mu_Id id, mu_Rect r,
     int textx = r.x + mu_min(ofx, ctx->style->padding);
     int texty = r.y + (r.h - texth) / 2;
     mu_push_clip_rect(ctx, r);
-    mu_draw_text(ctx, font, buf, -1, mu_vec2(textx, texty), color);
+
+    if (opt&MU_OPT_PASSWD) {
+        int len = strlen(buf);
+        char * tmp = (char*)alloca(len*3+1);
+        for (int i = 0; i < len; ++i)
+            tmp[i*3+0] = 0xe2, tmp[i*3+1] = 0x97, tmp[i*3+2] = 0x8f;
+        tmp[len*3] = '\0';
+        mu_draw_text(ctx, font, tmp, -1, mu_vec2(textx, texty), color);
+    } else {
+        mu_draw_text(ctx, font, buf, -1, mu_vec2(textx, texty), color);
+    }
     mu_draw_rect(ctx, mu_rect(textx + textw, texty, 1, texth), color);
     mu_pop_clip_rect(ctx);
   } else {
-    mu_draw_control_text(ctx, buf, r, MU_COLOR_TEXT, opt);
+      if (opt&MU_OPT_PASSWD) {
+          int len = strlen(buf);
+          char * tmp = (char*)alloca(len*3+1);
+          for (int i = 0; i < len; ++i)
+              tmp[i*3+0] = 0xe2, tmp[i*3+1] = 0x97, tmp[i*3+2] = 0x8f;
+          tmp[len*3] = '\0';
+          mu_draw_control_text(ctx, tmp, r, MU_COLOR_TEXT, opt);
+      } else {
+          mu_draw_control_text(ctx, buf, r, MU_COLOR_TEXT, opt);
+      }
+
   }
 
   return res;
