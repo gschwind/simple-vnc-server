@@ -19,6 +19,7 @@ AX_CXX_COMPILE_STDCXX_11(noext, mandatory)
 # Checks for libraries.
 PKG_CHECK_MODULES(LDEPS, [
 	libvncserver
+	pangocairo
 ])
 
 AC_SUBST(LDEPS_CFLAGS)
