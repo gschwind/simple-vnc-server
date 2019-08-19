@@ -12,7 +12,8 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-
+#include <signal.h>
+#include <sys/wait.h>
 
 #include <cairo.h>
 #include <pango/pango.h>
@@ -80,34 +81,87 @@ void kbdAddEvent(rfbBool down, rfbKeySym keySym, rfbClientRec * client)
     printf("keyboard event: down = %d, keySym = 0x%x, client = %p\n", down, keySym, client);
 }
 
+
+void clientGoneHook(rfbClientRec* cl)
+{
+    rfbShutdownServer(cl->screen, FALSE);
+}
+
+rfbNewClientAction newClientHook(rfbClientRec* cl)
+{
+    cl->clientGoneHook = &clientGoneHook;
+    return RFB_CLIENT_ACCEPT;
+}
+
 void new_client(int sock)
 {
-    /** create a new screen for the next connection **/
-    auto screen = rfbGetScreen(nullptr, nullptr, 800, 600, 8, 3, 4);
-    screen->ptrAddEvent = &ptrAddEvent;
-    screen->kbdAddEvent = &kbdAddEvent;
-    screen->frameBuffer = (char*)malloc(800*600*4);
-    screen->backgroundLoop = FALSE;
-    screen->inetdSock = sock;
-    printf("new client %d\n", screen->inetdSock);
 
-    auto surf = cairo_image_surface_create_for_data((unsigned char*)screen->frameBuffer, CAIRO_FORMAT_ARGB32, 800, 600, 800*4);
-    auto cr = cairo_create(surf);
+    int pid = fork();
 
-    char buf[100];
-    snprintf(buf, 100, "socket number %d", sock);
-    paint_text(cr, 10, 10, buf);
+    if (pid < 0) {
+        printf("failed to fork");
+        exit(1);
 
-    rfbInitServer(screen);
+    } else if (pid == 0) { // child
 
-//    rfbProcessEvents(screen, 100);
-//    assert(screen->clientHead);
+        /** create a new screen for the next connection **/
+        auto screen = rfbGetScreen(nullptr, nullptr, 800, 600, 8, 3, 4);
+        screen->ptrAddEvent = &ptrAddEvent;
+        screen->kbdAddEvent = &kbdAddEvent;
+        screen->frameBuffer = (char*)malloc(800*600*4);
+        screen->inetdSock = sock;
+        screen->newClientHook = &newClientHook;
+        printf("new client %d\n", screen->inetdSock);
 
-    screens.push_back(screen);
+        auto surf = cairo_image_surface_create_for_data((unsigned char*)screen->frameBuffer, CAIRO_FORMAT_ARGB32, 800, 600, 800*4);
+        auto cr = cairo_create(surf);
+
+        char buf[100];
+        snprintf(buf, 100, "socket number %d", sock);
+        paint_text(cr, 10, 10, buf);
+
+        rfbInitServer(screen);
+
+        close(listen_socket);
+
+        rfbRunEventLoop(screen, 1000, FALSE);
+
+        free(screen->frameBuffer);
+        free(screen);
+
+        exit(0);
+
+
+    }
+
+    // parent
+
+    // close socket
+    close(sock);
+
+
+}
+
+// avoid zombies
+void handle_sigchld(int n) {
+    int saved_errno = errno;
+    while (waitpid((pid_t)(-1), 0, WNOHANG) > 0) {}
+    errno = saved_errno;
 }
 
 int main(int argc, char ** argv)
 {
+
+    {
+        struct sigaction sa;
+        sa.sa_handler = &handle_sigchld;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+        if (sigaction(SIGCHLD, &sa, 0) == -1) {
+          perror(0);
+          exit(1);
+        }
+    }
 
     in_addr_t addr = htonl(INADDR_ANY);
 
@@ -124,14 +178,6 @@ int main(int argc, char ** argv)
         FD_ZERO(&fds);
         FD_SET(listen_socket, &fds);
         int maxfd = listen_socket;
-        for (auto s: screens) {
-            if (s->clientHead) {
-                if (s->clientHead->sock < 0)
-                    continue;
-                FD_SET(s->clientHead->sock, &fds);
-                maxfd = std::max(maxfd, s->clientHead->sock);
-            }
-        }
 
         int nfds = select(maxfd + 1, &fds, NULL, NULL, NULL);
 
@@ -139,23 +185,6 @@ int main(int argc, char ** argv)
             int sock = accept(listen_socket, nullptr, nullptr);
             if (sock >= 0) {
                 new_client(sock);
-            }
-        }
-
-        for (auto s: screens) {
-            rfbProcessEvents(s, 100);
-        }
-
-        auto it = screens.begin();
-        while(it != screens.end()) {
-            if ((*it)->clientHead) {
-                it++;
-            } else {
-                printf("close client %p\n", *it);
-                rfbShutdownServer(*it, TRUE);
-                free((*it)->frameBuffer);
-                free(*it);
-                it = screens.erase(it);
             }
         }
 
